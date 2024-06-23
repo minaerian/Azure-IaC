@@ -1,0 +1,115 @@
+trigger: none
+
+schedules:
+- cron: "0 5 * * *" # This is 9 PM PST / 10 PM PDT
+  displayName: Daily nightly cleanup of DR Dev Environment
+  branches:
+    include:
+    - dev
+  always: true
+
+# resources:
+#   pipelines:
+#   - pipeline: cleanup-dr-dev-env # Name of the pipeline resource.
+#     source: cleanup-dev-env # The name of the pipeline referenced by this pipeline resource.
+#     project: Azure-IaC
+#     trigger:
+#       branches:
+#         include:
+#           - dev
+
+pool:
+  vmImage: 'windows-latest'
+
+parameters:
+- name: spokes
+  type: object
+  default:
+  - name: hub
+    envs: [prod] # resource_env
+    dependencies: ''
+  - name: iag
+    envs: [dev,qa,prod] # resource_env
+    dependencies: 'hub_prod'
+  - name: gmr
+    envs: [dev,qa,prod] # resource_env
+    dependencies: 'hub_prod'
+  - name: azf
+    envs: [prod] # resource_env
+    dependencies: 'hub_prod'
+  - name: vdi
+    envs: [gmr,iag] # resource_env
+    dependencies: 'hub_prod'
+
+variables:
+- name: branchName
+  value: $(Build.SourceBranchName)
+- name: location
+  value: 'EastUS'
+- name: location_suffix
+  value: 'eus'
+- name: subscriptionIdDev
+  value: '5dca793e-3f0d-4e8c-a1a6-dc5d84a5b5a2'
+- name: subscriptionIdDrDev
+  value: '5dca793e-3f0d-4e8c-a1a6-dc5d84a5b5a2'
+- name: iac_env
+  value: placeholder
+- ${{ if contains(variables['Build.SourceBranchName'], 'main') }}:
+  - group: azure-iac-prod
+  - name: iac_env
+    value: Prod
+- ${{ if contains(variables['Build.SourceBranchName'], 'dev') }}:
+  - group: azure-iac-dev
+  - name: iac_env
+    value: drdev
+- ${{ if contains(variables['Build.SourceBranchName'], 'qa') }}:
+  - group: azure-iac-dev
+  - name: iac_env
+    value: QA
+
+stages:
+- stage: Post_Deployment_cleanup_for_DR_Env
+  dependsOn: []
+  condition: and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), always())
+  jobs:
+  - job: DeallocateFirewall
+    timeoutInMinutes: 180
+    displayName: Deallocate Azure Firewall and Delete VPN Gateways for DR Environment
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+    - task: AzurePowerShell@5
+      displayName: 'Deallocate Azure Firewall'
+      inputs:
+        azureSubscription: 'azure-iac'
+        ScriptType: 'FilePath'
+        ScriptPath: 'powerShellScripts/DeallocateAzureFirewall.ps1'
+        ScriptArguments: -subscriptionId $(subscriptionIdDrDev) -iac_env $(iac_env) -location_suffix $(location_suffix)
+        azurePowerShellVersion: 'LatestVersion'
+      
+    - task: AzurePowerShell@5
+      displayName: 'Delete Site-to-Site VPN Gateway'
+      inputs:
+        azureSubscription: 'azure-iac'
+        ScriptType: 'FilePath'
+        ScriptPath: 'powerShellScripts/DeleteSiteToSiteVPNGateway.ps1'
+        ScriptArguments: -subscriptionId $(subscriptionIdDrDev) -iac_env $(iac_env) -location_suffix $(location_suffix)
+        azurePowerShellVersion: 'LatestVersion'
+      
+    - task: AzurePowerShell@5
+      displayName: 'Delete Point-to-Site VPN Gateway'
+      inputs:
+        azureSubscription: 'azure-iac'
+        ScriptType: 'FilePath'
+        ScriptPath: 'powerShellScripts/DeletePointToSiteVPNGateway.ps1'
+        ScriptArguments: -subscriptionId $(subscriptionIdDrDev) -iac_env $(iac_env) -location_suffix $(location_suffix)
+        azurePowerShellVersion: 'LatestVersion'
+
+    - task: AzurePowerShell@5
+      displayName: 'Delete Resource Groups'
+      inputs:
+        azureSubscription: 'azure-iac'
+        ScriptType: 'FilePath'
+        ScriptPath: 'powerShellScripts/DeleteResourceGroups.ps1'
+        ScriptArguments: -subscriptionId $(subscriptionIdDrDev) -iac_env $(iac_env) -location_suffix $(location_suffix)
+        azurePowerShellVersion: 'LatestVersion'

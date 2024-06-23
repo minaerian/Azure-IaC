@@ -1,0 +1,150 @@
+trigger: none
+ 
+resources:
+  pipelines:
+  - pipeline: deploy-dr # Name of the pipeline resource.
+    source: Azure-IaC # The name of the pipeline referenced by this pipeline resource.
+    project: Azure-IaC
+    trigger: 
+      branches:
+        include:
+          - dev
+
+pool:
+  vmImage: 'windows-latest'
+
+parameters:
+- name: spokes
+  type: object
+  default:
+  - name: hub
+    envs: [prod] # resource_env
+    dependencies: ''
+  - name: iag
+    envs: [dev,qa,prod] # resource_env
+    dependencies: 'hub_prod'
+  - name: gmr
+    envs: [dev,qa,prod] # resource_env
+    dependencies: 'hub_prod'
+  - name: azf
+    envs: [prod] # resource_env
+    dependencies: 'hub_prod'
+  - name: vdi
+    envs: [gmr,iag] # resource_env
+    dependencies: 'hub_prod' 
+ 
+
+
+variables:
+- name: branchName
+  value: $(Build.SourceBranchName)
+- name: location
+  value: 'EastUS'
+- name: location_suffix
+  value: 'eus'
+- name: iac_env
+  value: placeholder
+- ${{ if contains( variables['Build.SourceBranchName'], 'main' ) }}:
+  - group: azure-iac-prod
+  - name: iac_env
+    value: drprod
+- ${{ if contains( variables['Build.SourceBranchName'], 'dev' ) }}:
+  - group: azure-iac-dev
+  - name: iac_env
+    value: drdev
+- ${{ if contains( variables['Build.SourceBranchName'], 'qa' ) }}:
+  - group: azure-iac-dev
+  - name: iac_env
+    value: QA
+
+
+stages:
+- stage: Validate
+  jobs:
+  - ${{ each spoke in parameters.spokes }}:
+    - ${{ each resource_env in spoke.envs }}:
+      - job: Validate_${{ spoke.name }}_${{ resource_env }}
+        displayName: Validate ${{ spoke.name }}_${{ resource_env }}
+        variables:
+          resource_env: ${{ resource_env }}
+          iac_env: ${{ variables.iac_env }}
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+        - task: AzureCLI@2
+          displayName: "Validate Bicep Deployment"
+          inputs:
+            azureSubscription: 'azure-iac'
+            scriptType: 'pscore'
+            scriptLocation: 'inlineScript'
+            inlineScript: |
+              echo "Validating Bicep Deployment for ${{ variables.iac_env }} in ${{ variables.location }}"
+              az deployment sub validate `
+                --name "validate-${{ variables.iac_env }}-${{ variables.location }}-$(Build.BuildId)" `
+                --location ${{ variables.location }} `
+                --template-file ./definitions/${{ spoke.name }}.bicep `
+                --parameters ./parameters/${{ spoke.name }}.bicepparam
+
+- stage: WhatIf
+  jobs:
+  - ${{ each spoke in parameters.spokes }}:
+    - ${{ each resource_env in spoke.envs }}:
+      - job: WhatIf_${{ spoke.name }}_${{ resource_env }}
+        displayName: What-If Analysis ${{ spoke.name }}_${{ resource_env }}
+        variables:
+          resource_env: ${{ resource_env }}
+          iac_env: ${{ variables.iac_env }}
+        pool:
+          vmImage: 'windows-latest'
+        condition: eq(variables['Build.SourceBranch'], 'refs/heads/main')
+        steps:
+        - task: AzureCLI@2
+          displayName: "What-If Deployment Analysis"
+          inputs:
+            azureSubscription: 'azure-iac'  
+            scriptType: 'pscore'
+            scriptLocation: 'inlineScript'
+            inlineScript: |
+              echo "Running What-If for ${{ spoke.name }} in ${{ variables.location }} under ${{ resource_env }} environment"
+              az deployment sub what-if `
+                --name "whatif-${{ spoke.name }}-${{ resource_env }}-$(Build.BuildId)" `
+                --location ${{ variables.location }} `
+                --template-file ./definitions/${{ spoke.name }}.bicep `
+                --parameters ./parameters/${{ spoke.name }}.bicepparam
+
+
+
+- stage: Deploy
+  jobs:
+  - ${{ each spoke in parameters.spokes }}:
+    - ${{ each resource_env in spoke.envs }}:
+      - deployment: Deploy_${{ spoke.name }}_${{ resource_env }}
+        ${{ if spoke.dependencies }}:
+          dependsOn: Deploy_${{ spoke.dependencies }}
+        environment: ${{ variables.iac_env }}
+        variables:
+          resource_env: ${{ resource_env }}
+          iac_env: ${{ variables.iac_env }}
+        timeoutInMinutes: 180
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+              - checkout: self
+                displayName: Checking out
+              - task: AzureCLI@2
+                displayName: 'Deploying ${{ spoke.name }}_${{ resource_env }} for ${{ variables.iac_env }}'
+                inputs:
+                  azureSubscription: 'azure-iac'
+                  scriptType: 'pscore'
+                  scriptLocation: 'inlineScript'
+                  inlineScript: |
+                    echo "Deploying with iac_env: ${{ variables.iac_env }} and subscription: ${{ parameters.hub_subscriptionId }}"
+                    $randomNumber = Get-Random -Maximum 0xFFFFFF # Generate a random integer
+                    $randomString = "{0:X6}" -f $randomNumber # Convert the number to a hexadecimal string
+                    az deployment sub create `
+                    --name iac-${{ variables.iac_env }}-deployment-$(Build.BuildId)-${{ spoke.name }}-${{ resource_env }}-${{ variables.location }}-$randomString `
+                    --location ${{ variables.location }}  `
+                    --template-file ./definitions/${{ spoke.name }}.bicep `
+                    --parameters ./parameters/${{ spoke.name }}.bicepparam
+
