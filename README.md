@@ -1,12 +1,17 @@
 # Deployment Scopes Management
 
-This project manages deployment scopes across different environments for various Azure subscriptions. It ensures consistent and secure handling of subscription IDs and network prefixes, facilitating efficient infrastructure management and deployment.
+This project manages deployment scopes across different environments for various Azure subscriptions using Bicep, a domain-specific language (DSL) for deploying Azure resources. The project ensures consistent and secure handling of subscription IDs and network prefixes, facilitating efficient infrastructure management and deployment.
 
 ## Table of Contents
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Deployment Scopes](#deployment-scopes)
+  - [Development Environment](#development-environment)
+  - [Production Environment](#production-environment)
+  - [Disaster Recovery Development Environment](#disaster-recovery-development-environment)
+  - [Disaster Recovery Production Environment](#disaster-recovery-production-environment)
 - [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
@@ -50,6 +55,56 @@ Before you begin, ensure you have met the following requirements:
 
 3. Verify the deployments through the Azure portal or using the Azure CLI.
 
+## Deployment Scopes
+
+### Development Environment
+
+- **dev**: This environment is used for development purposes. It includes resources for various stages such as dev, qa, and prod.
+  - **dev**: 
+    - `this_subscriptionId`: Deploys resources under a specific subscription for development.
+    - `hub_subscriptionId`: Deploys the hub network and related resources.
+    - `vnet_prefix`: Specifies the virtual network prefix.
+  - **qa**: 
+    - Similar to dev but used for quality assurance testing.
+  - **prod**: 
+    - Similar to dev but used for production-ready development resources.
+
+### Production Environment
+
+- **prod**: This environment is used for production deployments. It ensures the resources are ready for live use.
+  - **dev**:
+    - `this_subscriptionId`: Deploys resources under a specific subscription for production development.
+    - `hub_subscriptionId`: Deploys the hub network and related resources.
+    - `vnet_prefix`: Specifies the virtual network prefix.
+  - **qa**:
+    - Similar to dev but used for quality assurance testing in a production setting.
+  - **prod**:
+    - Similar to dev but used for live production resources.
+
+### Disaster Recovery Development Environment
+
+- **drdev**: This environment is used for disaster recovery scenarios in a development setting. It ensures that resources can be recovered and tested for resilience.
+  - **dev**:
+    - `this_subscriptionId`: Deploys resources under a specific subscription for disaster recovery development.
+    - `hub_subscriptionId`: Deploys the hub network and related resources.
+    - `vnet_prefix`: Specifies the virtual network prefix.
+  - **qa**:
+    - Similar to dev but used for quality assurance testing in a disaster recovery setting.
+  - **prod**:
+    - Similar to dev but used for production-ready disaster recovery resources.
+
+### Disaster Recovery Production Environment
+
+- **drprod**: This environment is used for disaster recovery scenarios in a production setting. It ensures that live resources can be recovered and maintained.
+  - **dev**:
+    - `this_subscriptionId`: Deploys resources under a specific subscription for disaster recovery production development.
+    - `hub_subscriptionId`: Deploys the hub network and related resources.
+    - `vnet_prefix`: Specifies the virtual network prefix.
+  - **qa**:
+    - Similar to dev but used for quality assurance testing in a disaster recovery setting.
+  - **prod**:
+    - Similar to dev but used for live production disaster recovery resources.
+
 ## Contributing
 
 Contributions are welcome! Please follow these steps to contribute:
@@ -82,3 +137,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Contact
 
 For questions or support, please contact Mina Erian at [mina.info.tech@gmail.com](mailto:mina.info.tech@gmail.com).
+
