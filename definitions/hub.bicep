@@ -646,38 +646,7 @@ module waf 'br:mcr.microsoft.com/bicep/avm/res/network/front-door-web-applicatio
   }
 }
 
-// param waf_iag_config object
-// param waf_gmr_config object
 
-// module waf_iag 'br:mcr.microsoft.com/bicep/avm/res/network/front-door-web-application-firewall-policy:0.1.1' = if (region == 'WestUS' && source_branch == 'Prod') {
-//   name: '${waf_iag_config.name}-${uniqueString(deployment().name, guid(subscription().id, waf_iag_config.name))}'
-//   scope: resourceGroup(frontdoor_rg_config.targetSubscriptionId, frontdoor_rg_config.name)
-//   dependsOn: [ frontdoor_rg ]
-//   params: {
-//     name: waf_iag_config.name
-//     location: 'global'
-//     managedRules: waf_iag_config.managedRules
-//     policySettings: waf_iag_config.policySettings
-//     sku: waf_iag_config.sku
-//     customRules: waf_iag_config.customRules
-//     tags: waf_iag_config.tags
-//   }
-// } 
-
-// module waf_gmr 'br:mcr.microsoft.com/bicep/avm/res/network/front-door-web-application-firewall-policy:0.1.1' = if (region == 'WestUS' && source_branch == 'Prod') {
-//   name: '${waf_gmr_config.name}-${uniqueString(deployment().name, guid(subscription().id, waf_gmr_config.name))}'
-//   scope: resourceGroup(frontdoor_rg_config.targetSubscriptionId, frontdoor_rg_config.name)
-//   dependsOn: [ frontdoor_rg ]
-//   params: {
-//     name: waf_gmr_config.name
-//     location: 'global'
-//     managedRules: waf_gmr_config.managedRules
-//     policySettings: waf_gmr_config.policySettings
-//     sku: waf_gmr_config.sku
-//     customRules: waf_gmr_config.customRules
-//     tags: waf_gmr_config.tags
-//   }
-// }
 
 // figure out how to send front door logs to sentinel.
 module frontdoor '../customModules/cdn/main.bicep' = if (region == 'WestUS' && source_branch == 'Prod') {
@@ -746,74 +715,7 @@ module devops_vmss_rg '../modules/resources/resource-group/main.bicep' = {
 }
 
 
-// @sys.batchSize(1) // loops over the array in the bicepparam file
-// module devops_linux_vmss '../modules/compute/virtual-machine-scale-set/main.bicep' = [for vmss in devops_linux_vmss_config.vmss:  {
-//   name: '${vmss.name}-${uniqueString(deployment().name, guid(subscription().id, vmss.name))}'
-//   scope: resourceGroup(devops_vmss_rg_config.targetSubscriptionId, devops_vmss_rg_config.name)
-//   dependsOn: [ devops_vmss_rg, ss_vnet ]
-//   params: {
-//     name: vmss.name
-//     imageReference: vmss.imageReference
-//     osDisk: vmss.osDisk
-//     osType: vmss.osType
-//     adminUsername: vmss.adminUsername
-//     adminPassword: vmss.adminPassword
-//     diagnosticWorkspaceId: logging_config.sentinelWorkspaceId
-//     nicConfigurations: [
-//       {
-//         ipConfigurations: [
-//           {
-//             name: 'ipconfig01'
-//             properties: {
-//               subnet: {
-//                 id: resourceId(devops_vmss_rg_config.targetSubscriptionId, ss_rg_config.name, 'Microsoft.Network/virtualNetworks/subnets', ss_vnet_config.name, ss_vnet_config.subnets[3].name)
-//               }
-//             }
-//           }
-//         ]
-//         nicSuffix: '-nic-01'
-//       }
-//     ]
-//     skuName: vmss.skuName
-//     encryptionAtHost: vmss.encryptionAtHost
-//     tags: vmss.tags
-//   }
-// }]
 
-
-// @sys.batchSize(1)
-// module devops_win_vmss '../modules/compute/virtual-machine-scale-set/main.bicep' = [for vmss in devops_win_vmss_config.vmss: if (source_branch == 'Prod') {
-//   name: '${vmss.name}-${uniqueString(deployment().name, guid(subscription().id, vmss.name))}'
-//   scope: resourceGroup(devops_vmss_rg_config.targetSubscriptionId, devops_vmss_rg_config.name)
-//   dependsOn: [ devops_vmss_rg, ss_vnet  ]
-//   params: {
-//     name: vmss.name
-//     imageReference: vmss.imageReference
-//     osDisk: vmss.osDisk
-//     osType: vmss.osType
-//     adminUsername: vmss.adminUsername
-//     adminPassword: vmss.adminPassword
-//     diagnosticWorkspaceId: logging_config.sentinelWorkspaceId
-//     nicConfigurations: [
-//       {
-//         ipConfigurations: [
-//           {
-//             name: 'ipconfig01'
-//             properties: {
-//               subnet: {
-//                 id: resourceId(devops_vmss_rg_config.targetSubscriptionId, ss_rg_config.name, 'Microsoft.Network/virtualNetworks/subnets', ss_vnet_config.name, ss_vnet_config.subnets[3].name)
-//               }
-//             }
-//           }
-//         ]
-//         nicSuffix: '-nic-01'
-//       }
-//     ]
-//     skuName: vmss.skuName
-//     encryptionAtHost: vmss.encryptionAtHost
-//     tags: vmss.tags
-//   }
-// }]
 
 module dcr_rg '../modules/resources/resource-group/main.bicep' = {
   name: '${dcr_rg_config.name}-${uniqueString(deployment().name, guid(subscription().id, dcr_rg_config.name))}'
